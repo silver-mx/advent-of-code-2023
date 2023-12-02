@@ -1,10 +1,8 @@
 package dns.challenge.day1;
 
-import java.io.File;
+import dns.challenge.utils.Util;
+
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -14,16 +12,16 @@ public class Trebuchet {
 
     public static final Pattern REGEX_PATTERN = Pattern.compile(".*?(one|two|three|four|five|six|seven|eight|nine){1}.*?");
 
-    public static void execute(String inputPath) throws IOException {
-        Path path = Path.of(new File(Trebuchet.class.getClassLoader().getResource(inputPath).getFile()).getAbsolutePath());
-        List<String> allLines = Files.readAllLines(path);
-        int sum = processLines(allLines);
-        System.out.println("result=" + sum);
+    public static int execute(String inputPath) throws IOException {
+        int sum = processInput(Util.loadInput(inputPath));
+        System.out.println("==========> result=" + sum);
+
+        return 0;
     }
 
-    private static int processLines(List<String> allLines) {
+    private static int processInput(List<String> allLines) {
         return allLines.stream()
-                .peek(line -> System.out.println("--------------------------Original line[" + line + "]"))
+                //.peek(line -> System.out.println("--------------------------Original line[" + line + "]"))
                 .map(Trebuchet::replaceLetterDigitsWithDigits)
                 .map(Trebuchet::findCalibrationValue)
                 .mapToInt(Integer::parseInt)
@@ -33,7 +31,7 @@ public class Trebuchet {
     private static String findCalibrationValue(String line) {
         String[] digits = line.chars().filter(Character::isDigit).mapToObj(Character::toString).collect(Collectors.joining()).split("");
         String detectedDigit = digits[0] + digits[digits.length - 1];
-        System.out.println("line[" + line + "], digits" + Arrays.toString(digits) + ", detectedDigit=" + detectedDigit);
+        //System.out.println("line[" + line + "], digits" + Arrays.toString(digits) + ", detectedDigit=" + detectedDigit);
 
         return detectedDigit;
     }
@@ -44,7 +42,7 @@ public class Trebuchet {
         if (matcher.matches()) {
 
             String match = matcher.group(1);
-            System.out.println("matches = " + match);
+            //System.out.println("matches = " + match);
 
             String replacedLine = switch (match) {
                 case "one" -> line.replace("one", "o1ne");
@@ -59,7 +57,7 @@ public class Trebuchet {
                 default -> throw new IllegalArgumentException("Unable to handle " + match);
             };
 
-            System.out.println("line[" + line + "], match[" + line + " => " + replacedLine + "]");
+            //System.out.println("line[" + line + "], match[" + line + " => " + replacedLine + "]");
 
             return replaceLetterDigitsWithDigits(replacedLine);
         }
@@ -68,6 +66,6 @@ public class Trebuchet {
     }
 
     public static void main(String[] args) {
-        System.out.println("result = " + processLines(List.of("fourknflljrbrq63five")));
+        System.out.println("result = " + processInput(List.of("fourknflljrbrq63five")));
     }
 }
