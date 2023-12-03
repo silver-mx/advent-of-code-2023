@@ -3,17 +3,14 @@ package dns.challenge.day3;
 import dns.challenge.utils.Util;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static java.util.stream.Collectors.toSet;
+import static java.util.stream.Collectors.*;
 
 public class GearRatios {
 
@@ -21,21 +18,47 @@ public class GearRatios {
     private static final Pattern PATTERN_DIGIT = Pattern.compile("(\\d+)");
 
     public static int execute(String inputPath) throws IOException {
-        int score = processInput(Util.loadInput(inputPath));
-        System.out.println("==========> result=" + score);
+        GearRatiosResult result = processInput(Util.loadInput(inputPath));
+        System.out.println("==========> result=" + result);
 
         return 0;
     }
 
-    private static int processInput(List<String> allLines) {
-        return IntStream.range(0, allLines.size())
-                .map(i -> sumValidValues(i, allLines))
+    private static GearRatiosResult processInput(List<String> allLines) {
+        List<Part> parts = IntStream.range(0, allLines.size())
+                .mapToObj(i -> findParts(i, allLines))
+                .flatMap(List::stream)
+                .toList();
+
+        // part 1
+        int partsSum = parts.stream()
+                .map(Part::digit)
+                .mapToInt(Integer::intValue)
                 .sum();
+
+        // part 2
+        Map<AdjacentSymbol, List<Part>> symbolToPartsMap = parts.stream()
+                .map(part -> part.adjacentSymbols().stream()
+                        .collect(toMap(Function.identity(), symbol -> part)))
+                .map(Map::entrySet).flatMap(Set::stream)
+                .collect(groupingBy(Map.Entry::getKey, mapping(Map.Entry::getValue, toList())))
+                .entrySet().stream()
+                .filter(e -> e.getValue().size() > 1)
+                .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+        int gearSum = symbolToPartsMap.values().stream()
+                .map(partList -> partList.stream().map(Part::digit)
+                        .mapToInt(Integer::intValue)
+                        .reduce(1, (a, b) -> a * b))
+                .mapToInt(Integer::intValue)
+                .sum();
+
+        return new GearRatiosResult(partsSum, gearSum);
     }
 
-    private static int sumValidValues(int index, List<String> allLines) {
-        List<Integer> digitsInLine = new ArrayList<>();
-        List<SymbolPosition> symbols = findSymbolPositions(index, allLines);
+    private static List<Part> findParts(int index, List<String> allLines) {
+        List<Part> partsInLine = new ArrayList<>();
+        List<AdjacentSymbol> symbols = findSymbolPositions(index, allLines);
         String line = allLines.get(index);
         Matcher matcher = PATTERN_DIGIT.matcher(line);
 
@@ -44,46 +67,44 @@ public class GearRatios {
         while (matcher.find()) {
             int digit = Integer.parseInt(matcher.group(1));
             int column = matcher.start(1);
-            if (hasAdjacentSymbol(digit, index, column, symbols)) {
-                digitsInLine.add(digit);
+            List<AdjacentSymbol> adjacentSymbols = findAdjacentSymbol(digit, index, column, symbols);
+            if (!adjacentSymbols.isEmpty()) {
+                partsInLine.add(new Part(digit, index, column, adjacentSymbols));
             }
         }
 
-        int digitsInLineSum = digitsInLine.stream().mapToInt(Integer::intValue).sum();
-        System.out.println("+++++++++ digitsInLineSum=" + digitsInLineSum);
-
-        return digitsInLineSum;
+        return partsInLine;
     }
 
-    private static boolean hasAdjacentSymbol(int digit, int row, int column, List<SymbolPosition> symbols) {
+    private static List<AdjacentSymbol> findAdjacentSymbol(int digit, int row, int column, List<AdjacentSymbol> symbols) {
         int digitLength = String.valueOf(digit).length();
         Set<Integer> validRows = Set.of(row - 1, row, row + 1);
         Set<Integer> validColumns = IntStream.range(column - 1, column + digitLength + 1).boxed().collect(toSet());
 
-        return symbols.stream().anyMatch(position -> {
+        return symbols.stream().filter(position -> {
             boolean isAdjacentTo = validRows.contains(position.row()) && validColumns.contains(position.column());
             if (isAdjacentTo) System.out.println("digit = " + digit + " has adjacent symbol[" + position + "]");
             return isAdjacentTo;
-        });
+        }).toList();
     }
 
-    private static List<SymbolPosition> findSymbolPositions(int index, List<String> allLines) {
-        List<SymbolPosition> symbolsLineBefore = index - 1 >= 0 ? findSymbols(index - 1, allLines.get(index - 1)) : Collections.emptyList();
-        List<SymbolPosition> symbolsLine = findSymbols(index, allLines.get(index));
-        List<SymbolPosition> symbolsLineAfter = index + 1 < allLines.size() ? findSymbols(index + 1, allLines.get(index + 1)) : Collections.emptyList();
+    private static List<AdjacentSymbol> findSymbolPositions(int index, List<String> allLines) {
+        List<AdjacentSymbol> symbolsLineBefore = index - 1 >= 0 ? findSymbols(index - 1, allLines.get(index - 1)) : Collections.emptyList();
+        List<AdjacentSymbol> symbolsLine = findSymbols(index, allLines.get(index));
+        List<AdjacentSymbol> symbolsLineAfter = index + 1 < allLines.size() ? findSymbols(index + 1, allLines.get(index + 1)) : Collections.emptyList();
 
         return Stream.concat(Stream.concat(symbolsLineBefore.stream(), symbolsLine.stream()), symbolsLineAfter.stream()).toList();
 
     }
 
-    private static List<SymbolPosition> findSymbols(int row, String line) {
+    private static List<AdjacentSymbol> findSymbols(int row, String line) {
         Matcher matcher = PATTERN_SYMBOL.matcher(line);
-        List<SymbolPosition> symbols = new ArrayList<>();
+        List<AdjacentSymbol> symbols = new ArrayList<>();
 
         while (matcher.find()) {
             String symbol = matcher.group(1);
             int column = matcher.start(1);
-            symbols.add(new SymbolPosition(symbol, row, column));
+            symbols.add(new AdjacentSymbol(symbol, row, column));
         }
 
         return symbols;
