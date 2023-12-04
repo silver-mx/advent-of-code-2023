@@ -5,38 +5,81 @@ import dns.challenge.utils.Util;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import static java.util.stream.Collectors.summingInt;
 
 public class Scratchcards {
 
     private static final Pattern PATTERN = Pattern.compile("Card\\s+(\\d+):(.*)\\|(.*)");
 
     public static int execute(String inputPath) throws IOException {
-        int sum = processInput(Util.loadInput(inputPath));
-        System.out.println("==========> result=" + sum);
+        ScratchcardsResult result = processInput(Util.loadInput(inputPath));
+        System.out.println("==========> result=" + result);
 
         return 0;
     }
 
-    private static int processInput(List<String> allLines) {
-        return allLines.stream()
+    private static ScratchcardsResult processInput(List<String> allLines) {
+        List<PointToCardCopies> pointToCardCopiesLst = allLines.stream()
+                //.peek(x -> System.out.println("===============> line=" + x))
                 .map(Scratchcards::parseLine)
-                .map(Scratchcards::countPoints)
-                .mapToInt(Integer::intValue)
-                .sum();
+                .map(Scratchcards::countPointsAndCardCopies)
+                //.peek(x -> System.out.println("count=" + x))
+                .toList();
+
+        // Part 1
+        int points = pointToCardCopiesLst.stream().mapToInt(PointToCardCopies::points).sum();
+
+        // Part 2
+        Map<Integer, Integer> idToCopiesMap = pointToCardCopiesLst.stream().map(e -> e.cardCopies().stream()
+                        .collect(Collectors.toMap(CardCopies::id, CardCopies::numCopies))
+                        .entrySet())
+                .flatMap(Set::stream)
+                .collect(Collectors.groupingBy(Map.Entry::getKey, summingInt(Map.Entry::getValue)));
+
+        // We still need to adjust how upstream copies affect downstream copies
+        int totalCopies = getTotalNumCopies(idToCopiesMap, pointToCardCopiesLst);
+
+        return new ScratchcardsResult(points, totalCopies);
     }
 
-    private static int countPoints(Card card) {
-        long matchingNumbers = card.cardNumbers().stream().filter(n -> card.winNumbers().contains(n)).count();
-
-        if (matchingNumbers == 1) {
-            return 1;
-        } else if (matchingNumbers > 1) {
-            return (int) Math.pow(2, matchingNumbers - 1);
+    private static int getTotalNumCopies(Map<Integer, Integer> copies, List<PointToCardCopies> pointToCardCopiesLst) {
+        // Adjust the copies
+        for (var e : pointToCardCopiesLst) {
+            int cardId = e.card().id();
+            int numCopies = copies.get(cardId);
+            int numMatchesInCard = e.cardCopies().size();
+            if (numCopies > 1) {
+                IntStream.range(1, numCopies).forEach(c ->
+                        IntStream.range(1, numMatchesInCard).forEach(i -> {
+                            int currentValue = copies.get(cardId + i);
+                            copies.put(cardId + i, currentValue + 1);
+                        })
+                );
+            }
         }
 
-        return 0;
+        return copies.values().stream().mapToInt(Integer::intValue).sum();
+    }
+
+    private static PointToCardCopies countPointsAndCardCopies(Card card) {
+        int matchingNumbers = (int) card.cardNumbers().stream().filter(n -> card.winNumbers().contains(n)).count();
+        List<CardCopies> cardCopies = IntStream.range(0, matchingNumbers + 1)
+                .mapToObj(i -> new CardCopies(card.id() + i, 1)).toList();
+
+        if (matchingNumbers == 1) {
+            return new PointToCardCopies(card, 1, cardCopies);
+        } else if (matchingNumbers > 1) {
+            return new PointToCardCopies(card, (int) Math.pow(2, matchingNumbers - 1), cardCopies);
+        }
+
+        return new PointToCardCopies(card, 0, cardCopies);
     }
 
     private static Card parseLine(String line) {
