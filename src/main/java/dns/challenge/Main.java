@@ -17,7 +17,7 @@ public class Main {
             case 1 -> Trebuchet.execute("input/day1-input.txt");
             case 2 -> CubeConundrum.execute("input/day2-input.txt");
             case 3 -> GearRatios.execute("input/day3-input.txt");
-            case 4 -> Scratchcards.execute("input/demo-input.txt");
+            case 4 -> Scratchcards.execute("input/day4-input.txt");
             default -> throw new IllegalArgumentException("No challenge for day=" + day);
         };
 
