@@ -18,11 +18,11 @@ public class Scratchcards {
 
     private static final Pattern PATTERN = Pattern.compile("Card\\s+(\\d+):(.*)\\|(.*)");
 
-    public static int execute(String inputPath) throws IOException {
+    public static ScratchcardsResult execute(String inputPath) throws IOException {
         ScratchcardsResult result = processInput(Util.loadInput(inputPath));
         System.out.println("==========> result=" + result);
 
-        return 0;
+        return result;
     }
 
     private static ScratchcardsResult processInput(List<String> allLines) {
@@ -55,13 +55,13 @@ public class Scratchcards {
             int cardId = e.card().id();
             int numCopies = copies.get(cardId);
             int numMatchesInCard = e.cardCopies().size();
+
             if (numCopies > 1) {
-                IntStream.range(1, numCopies).forEach(c ->
-                        IntStream.range(1, numMatchesInCard).forEach(i -> {
-                            int currentValue = copies.get(cardId + i);
-                            copies.put(cardId + i, currentValue + 1);
-                        })
-                );
+                IntStream.range(1, numMatchesInCard).forEach(i -> {
+                    int targetCard = cardId + i;
+                    int currentValue = copies.get(targetCard);
+                    copies.put(targetCard, currentValue + numCopies - 1);
+                });
             }
         }
 
