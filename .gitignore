@@ -36,3 +36,6 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### NPM Stuff ###
+/aoc-typescript/node_modules
